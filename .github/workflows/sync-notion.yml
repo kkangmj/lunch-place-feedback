@@ -1,0 +1,40 @@
+name: Sync PostgreSQL → Notion
+
+on:
+  schedule:
+    # 3일마다 자정 UTC 실행
+    - cron: '0 0 */3 * *'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run sync
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          NOTION_PARENT_PAGE_ID: ${{ secrets.NOTION_PARENT_PAGE_ID }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+          SYNC_TABLE_NAME: ${{ secrets.SYNC_TABLE_NAME }}
+          SYNC_TIMESTAMP_COLUMN: ${{ secrets.SYNC_TIMESTAMP_COLUMN }}
+        run: python sync.py
+
+      - name: Commit last_synced.txt
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add last_synced.txt
+          git diff --cached --quiet || git commit -m "chore: update last_synced.txt"
+          git push
